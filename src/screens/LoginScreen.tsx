@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,86 +9,78 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import Logo from '../components/Shared/Logo';
-import {api} from '../utils/api';
+import { api } from '../utils/api';
 import toastConfig from '../styles/toastConfig';
 
-const LoginScreen = ({navigation}) => {
-  const [mobileNumber, setMobileNumber] = useState('9084043946');
-
+const LoginScreen = ({ navigation }) => {
+  const [mobileNumber, setMobileNumber] = useState('');
   const [isTermsAccepted, setIsTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const loginUser = async () => {
+  const handleMobileNumberChange = text => {
+    setMobileNumber(text.replace(/[^0-9]/g, '').slice(0, 10));
+  };
+
+  const parseErrorMessage = error => {
+    let errorMessage = 'Something went wrong. Please try again.';
+    const errorData = error?.response?.data?.message;
+
+    if (errorData && typeof errorData === 'object') {
+      const firstNonEmptyKey = Object.keys(errorData).find(
+        key => errorData[key]?.trim() !== ''
+      );
+      errorMessage = firstNonEmptyKey ? errorData[firstNonEmptyKey] : errorMessage;
+    } else if (typeof errorData === 'string') {
+      errorMessage = errorData;
+    }
+
+    return errorMessage;
+  };
+
+  const loginUser = useCallback(async () => {
     try {
-      const payload = {mobileNo: mobileNumber};
-      const response = await api.post('/users/login-otp', payload);
+      const response = await api.post('/users/login-otp', { mobileNo: mobileNumber });
       Toast.show({
         type: 'success',
         text1: 'OTP Sent',
-        text2: 'Please check your mobile number.',
+        text2: 'Check your mobile number.',
       });
       return response;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login Error:', error?.response?.data);
-
-      let errorMessage = 'Something went wrong. Please try again.'; // Default message
-      const errorData = error?.response?.data?.message;
-
-      // Check if `errorData` is an object and find the first key with a non-empty value
-      if (errorData && typeof errorData === 'object') {
-        const firstNonEmptyKey = Object.keys(errorData).find(
-          key => errorData[key]?.trim() !== '',
-        );
-        errorMessage = firstNonEmptyKey
-          ? errorData[firstNonEmptyKey]
-          : errorMessage;
-      } else if (typeof errorData === 'string') {
-        errorMessage = errorData;
-      }
-
       Toast.show({
         type: 'error',
         text1: 'Login Failed',
-        text2: errorMessage,
+        text2: parseErrorMessage(error),
       });
-
       throw error;
     }
-  };
+  }, [mobileNumber]);
 
   const handleGetOTP = async () => {
-    if (!mobileNumber || mobileNumber.length !== 10) {
-      Toast.show({
+    if (mobileNumber.length !== 10) {
+      return Toast.show({
         type: 'error',
         text1: 'Validation Error',
         text2: 'Enter a valid 10-digit mobile number.',
       });
-      return;
     }
+
     if (!isTermsAccepted) {
-      Toast.show({
+      return Toast.show({
         type: 'error',
         text1: 'Validation Error',
         text2: 'Accept Terms and Conditions.',
       });
-      return;
     }
+
     setLoading(true);
     try {
       await loginUser();
-      navigation.replace('OTP', {fromLogin: true, mobileNo: mobileNumber});
+      navigation.replace('OTP', { fromLogin: true, mobileNo: mobileNumber });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleMobileNumberChange = text => {
-    const formattedText = text.replace(/[^0-9]/g, '').slice(0, 10);
-    setMobileNumber(formattedText);
-  };
-
-  const handleRegisterNavigation = () => {
-    navigation.navigate('Register');
   };
 
   return (
@@ -106,7 +98,8 @@ const LoginScreen = ({navigation}) => {
       />
       <TouchableOpacity
         onPress={() => setIsTermsAccepted(!isTermsAccepted)}
-        style={styles.checkboxContainer}>
+        style={styles.checkboxContainer}
+      >
         <Text style={styles.checkbox}>
           {isTermsAccepted ? '☑' : '☐'} Accept Terms and Conditions
         </Text>
@@ -119,11 +112,10 @@ const LoginScreen = ({navigation}) => {
         </TouchableOpacity>
       )}
       <TouchableOpacity
-        onPress={handleRegisterNavigation}
-        style={styles.linkButton}>
-        <Text style={styles.linkText}>
-          Don't have an account? Register here
-        </Text>
+        onPress={() => navigation.navigate('Register')}
+        style={styles.linkButton}
+      >
+        <Text style={styles.linkText}>Don't have an account? Register here</Text>
       </TouchableOpacity>
     </View>
   );
@@ -152,10 +144,10 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     fontSize: 16,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
-    elevation: 50,
+    elevation: 5,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -174,7 +166,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,

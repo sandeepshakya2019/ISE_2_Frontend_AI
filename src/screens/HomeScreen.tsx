@@ -1,102 +1,42 @@
 import React, {useEffect, useRef} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Animated} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {View, Text, TouchableOpacity, StyleSheet, Animated, Image} from 'react-native';
+import {useNavigation, NavigationProp} from '@react-navigation/native';
+import {RootStackParamList} from '../navigation/types'; // Adjust the import path as necessary
 import Logo from '../components/Shared/Logo';
 
-export default function HomeScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
   // Animation references
-  const fadeAnim = useRef(new Animated.Value(0)).current; // For background image opacity
-  const logoAnim = useRef(new Animated.Value(-100)).current; // For logo from top
-  const contentAnim = useRef(new Animated.Value(100)).current; // For text and button from bottom
+  const fadeAnim = useRef(new Animated.Value(0)).current; // Background fade-in
+  const logoAnim = useRef(new Animated.Value(-100)).current; // Logo slide from top
+  const contentAnim = useRef(new Animated.Value(50)).current; // Content slide from bottom
 
   useEffect(() => {
-    // Animate background, logo, and content sequentially
     Animated.parallel([
-      // Fade in the background image (slower)
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 2000, // Increased duration for slower fade-in
+        duration: 1500, // Smooth fade-in
         useNativeDriver: true,
       }),
-      // Slide the logo from top (slower and smoother)
       Animated.spring(logoAnim, {
-        toValue: 2,
-        friction: 8, // Lower friction for smoother animation
+        toValue: 0,
+        friction: 6, // Smooth spring effect
         useNativeDriver: true,
       }),
-      // Slide the text and button from bottom (slower and smoother)
       Animated.spring(contentAnim, {
-        toValue: 2,
-        friction: 8, // Lower friction for smoother animation
+        toValue: 0,
+        friction: 6, // Smooth spring effect
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, logoAnim, contentAnim]);
-
-  const handleRegister = () => {
-    navigation.navigate('Register');
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Background Image */}
-      <Animated.Image
-        source={require('../assets/images/back.jpeg')}
-        style={[
-          styles.backgroundImage,
-          {
-            opacity: fadeAnim, // Bind fade animation to opacity
-          },
-        ]}
-      />
-
-      {/* Overlay for blackish effect */}
-      <View style={styles.overlay} />
-
-      {/* Animated Logo - Positioned at the top */}
-      <Animated.View
-        style={{
-          transform: [{translateY: logoAnim}], // Move from top
-          position: 'absolute',
-          top: 40, // Adjust top position of logo
-        }}>
-        <Logo />
-      </Animated.View>
-
-      {/* Content: Text and Button */}
-      <Animated.View
-        style={[
-          styles.contentContainer,
-          {
-            transform: [{translateY: contentAnim}], // Move from bottom
-          },
-        ]}>
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Register</Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.textContainer,
-          {
-            transform: [{translateX: contentAnim}], // Move from bottom
-          },
-        ]}>
-        <Text style={styles.text}>Small Loans, Big Impact On Rural Lives</Text>
-      </Animated.View>
-    </View>
-  );
-}
+  }, []);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#000', // Background fallback
   },
   backgroundImage: {
     position: 'absolute',
@@ -105,52 +45,65 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   overlay: {
+    ...StyleSheet.absoluteFillObject, // Covers entire screen
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dark overlay for readability
+  },
+  logoContainer: {
     position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent black
+    top: 50, // Better positioning for different screen sizes
+    alignItems: 'center',
   },
   contentContainer: {
     position: 'absolute',
-    bottom: 100, // Start near the bottom of the screen
+    bottom: 80, //  container: {
+    flex: 1,
     alignItems: 'center',
-    width: '100%',
-    justifyContent: 'space-evenly', // Evenly distribute space
-    paddingBottom: 30,
+    justifyContent: 'center',
+    backgroundColor: '#000', // Background fallback
   },
-  textContainer: {
+  backgroundImage: {
     position: 'absolute',
-    bottom: 5, // Start near the bottom of the screen
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject, // Covers entire screen
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dark overlay for readability
+  },
+  logoContainer: {
+    position: 'absolute',
+    top: 50, // Better positioning for different screen sizes
+    alignItems: 'center',
+  },
+  contentContainer: {
+    position: 'absolute',
+    bottom: 80, // Adjusted for better visibility
     alignItems: 'center',
     width: '100%',
-    justifyContent: 'space-evenly', // Evenly distribute space
-    paddingBottom: 5,
   },
   text: {
-    fontSize: 28, // Font size for readability
-    color: 'rgba(250, 203, 17, 0.98)', // A warm, semi-transparent color for the text
-    textAlign: 'center', // Centers the text
-    marginBottom: 20, // Adds some space below the text
-    fontWeight: '800', // Bold weight for the text
-    // backgroundColor: 'rgba(0, 0, 0, 0.2)', // Subtle black background for text visibility
-    paddingHorizontal: 10, // Horizontal padding for spacing around text
-    borderRadius: 8, // Rounded corners for the background
-    paddingVertical: 10, // Vertical padding for spacing inside the text box
-    fontFamily: 'Arial', // Basic sans-serif font (you can change it to your preference)
-    letterSpacing: 1, // Slightly increased space between letters for better readability
-    lineHeight: 30, // Adds space between lines if the text wraps onto multiple lines
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FACB11', // Warm, readable text
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 15,
+    letterSpacing: 1.2, // Better readability
+    lineHeight: 32, // Optimal line height
   },
-
   button: {
     backgroundColor: '#007bff',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
     borderRadius: 8,
-    alignItems: 'center',
+    elevation: 4, // Subtle shadow for depth
   },
   buttonText: {
-    fontSize: 16,
-    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff',
   },
 });
+
+// export default HomeScreen; (Removed duplicate export)

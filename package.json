@@ -10,20 +10,30 @@
     "test": "jest"
   },
   "dependencies": {
-    "react": "18.3.1",
-    "react-native": "0.77.1"
+    "@react-native-async-storage/async-storage": "^2.1.1",
+    "@react-navigation/native": "^7.0.14",
+    "@react-navigation/stack": "^7.1.1",
+    "axios": "^1.7.9",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-native": "^0.76.1",
+    "react-native-image-picker": "^8.1.0",
+    "react-native-safe-area-context": "^5.2.0",
+    "react-native-screens": "^4.9.0",
+    "react-native-toast-message": "^2.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.25.3",
     "@babel/runtime": "^7.25.0",
-    "@react-native-community/cli": "15.0.1",
+    "@react-native-community/cli": "latest",
     "@react-native-community/cli-platform-android": "15.0.1",
     "@react-native-community/cli-platform-ios": "15.0.1",
     "@react-native/babel-preset": "0.77.1",
     "@react-native/eslint-config": "0.77.1",
     "@react-native/metro-config": "0.77.1",
     "@react-native/typescript-config": "0.77.1",
+    "@types/axios": "^0.9.36",
     "@types/jest": "^29.5.13",
     "@types/react": "^18.2.6",
     "@types/react-test-renderer": "^18.0.0",

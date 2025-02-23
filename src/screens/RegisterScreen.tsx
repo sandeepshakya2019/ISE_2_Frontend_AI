@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,142 +7,91 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import Toast from 'react-native-toast-message'; // Import Toast
+import Toast from 'react-native-toast-message';
 import Logo from '../components/Shared/Logo';
-import {api, apiCallWithHeader, apiCallWithoutHeader} from '../utils/api';
+import { apiCallWithoutHeader } from '../utils/api';
 import toastConfig from '../styles/toastConfig';
-// comment check
-const RegisterScreen = ({navigation}) => {
-  const [formData, setFormData] = useState({
-    name: 'Sandeep Kumar',
-    mobileNumber: '9084043946',
-    email: 'cs24m112@gmail.com',
+
+interface FormData {
+  name: string;
+  mobileNumber: string;
+  email: string;
+  isTermsAccepted: boolean;
+}
+
+const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    mobileNumber: '',
+    email: '',
     isTermsAccepted: false,
   });
-  const [loading, setLoading] = useState(false); // Loading state
 
-  const handleInputChange = (field, value) => {
-    setFormData(prevState => ({...prevState, [field]: value}));
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+    setFormData(prevState => ({ ...prevState, [field]: value }));
   };
 
-  const validateForm = () => {
-    const {name, mobileNumber, email, isTermsAccepted} = formData;
+  const validateForm = (): string | null => {
+    const { name, mobileNumber, email, isTermsAccepted } = formData;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const mobileRegex = /^[0-9]{10}$/;
 
-    if (!name.trim()) {
-      return 'Full Name is Required';
-    }
-
-    if (!mobileNumber || mobileNumber.length !== 10) {
-      return 'Mobile Number should be of 10 Digit';
-    }
-
-    if (email && !emailRegex.test(email)) {
-      return 'Valid Email Address is Required';
-    }
-
-    if (!isTermsAccepted) {
-      return 'You must accept the Terms and Conditions.';
-    }
+    if (!name.trim()) return 'Full Name is required';
+    if (!mobileRegex.test(mobileNumber)) return 'Enter a valid 10-digit Mobile Number';
+    if (email && !emailRegex.test(email)) return 'Enter a valid Email Address';
+    if (!isTermsAccepted) return 'You must accept the Terms and Conditions';
 
     return null;
   };
 
-  const loginUser = async () => {
+  const apiRequest = async (endpoint: string, payload: object) => {
     try {
-      const payload = {mobileNo: formData.mobileNumber};
-      const [success, response] = await apiCallWithoutHeader(
-        '/users/login-otp',
-        'POST',
-        payload,
-      );
-
-      if (success) {
-        Toast.show({
-          type: 'success',
-          text1: 'OTP Sent',
-          text2: 'Please check SMS for OTP',
-        });
-        return response[1];
-      }
+      const [success, response] = await apiCallWithoutHeader(endpoint, 'POST', payload);
+      if (!success) throw new Error(response.message || 'Something went wrong');
+      return response;
     } catch (error: any) {
-      throw error;
+      throw new Error(error.message);
     }
   };
 
   const getOTP = async () => {
-    if (!formData.mobileNumber || formData.mobileNumber.length !== 10) {
-      throw Error('Please Entrer 10 Digit mobile Number');
-    }
     setLoading(true);
     try {
-      await loginUser();
-    } catch (err: any) {
-      navigation.navigate('Register');
-      throw Error(err);
+      await apiRequest('/users/login-otp', { mobileNo: formData.mobileNumber });
+      Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Check SMS for OTP' });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'OTP Error', text2: error.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const registerUser = async (): Promise<any> => {
-    try {
-      const {name, mobileNumber, email} = formData;
-
-      const payload = {
-        mobileNo: mobileNumber,
-        fullName: name,
-        emailId: email,
-      };
-
-      const [success, response] = await apiCallWithoutHeader(
-        '/users/register',
-        'POST',
-        payload,
-      );
-
-      if (success) {
-        await getOTP();
-        navigation.replace('OTP', {
-          fromLogin: false,
-          mobileNo: formData.mobileNumber,
-        });
-        return response;
-      }
-    } catch (err: any) {
-      throw Error(err);
-    }
-  };
-
-  const handleGetOTP = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: validationError,
-      });
-      return;
-    }
-
+  const registerUser = async () => {
     setLoading(true);
     try {
-      await registerUser();
-    } catch (error: any) {
-      const errorMessage = error.message.replace(/Error:\s?/i, '');
-      console.error('Error during registration:', errorMessage);
-      Toast.show({
-        type: 'error',
-        text1: 'Registration Failed',
-        text2: errorMessage,
+      await apiRequest('/users/register', {
+        mobileNo: formData.mobileNumber,
+        fullName: formData.name,
+        emailId: formData.email,
       });
+      await getOTP();
+      navigation.replace('OTP', { fromLogin: false, mobileNo: formData.mobileNumber });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Registration Failed', text2: error.message });
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
-  const handleAlreadyRegistered = () => {
-    navigation.navigate('Login');
+  const handleGetOTP = () => {
+    const validationError = validateForm();
+    if (validationError) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: validationError });
+      return;
+    }
+    registerUser();
   };
 
   return (
@@ -150,43 +99,30 @@ const RegisterScreen = ({navigation}) => {
       <Toast config={toastConfig} />
       <Logo />
       <Text style={styles.logo}>Register</Text>
-      <TextInput
-        placeholder="Enter Full Name"
-        style={styles.input}
-        value={formData.name}
-        onChangeText={text => handleInputChange('name', text)}
-        placeholderTextColor="#888"
+
+      <InputField 
+        placeholder="Enter Full Name" 
+        value={formData.name} 
+        onChangeText={text => handleInputChange('name', text)} 
       />
-      <TextInput
+      <InputField 
         placeholder="Enter Mobile Number"
-        style={styles.input}
         keyboardType="numeric"
         value={formData.mobileNumber}
-        onChangeText={text =>
-          handleInputChange(
-            'mobileNumber',
-            text.replace(/[^0-9]/g, '').slice(0, 10),
-          )
-        }
-        placeholderTextColor="#888"
+        onChangeText={text => handleInputChange('mobileNumber', text.replace(/[^0-9]/g, '').slice(0, 10))}
       />
-      <TextInput
-        placeholder="Email ID"
-        style={styles.input}
-        keyboardType="email-address"
-        value={formData.email}
-        onChangeText={text => handleInputChange('email', text)}
-        placeholderTextColor="#888"
+      <InputField 
+        placeholder="Email ID" 
+        keyboardType="email-address" 
+        value={formData.email} 
+        onChangeText={text => handleInputChange('email', text)} 
       />
-      <TouchableOpacity
-        onPress={() =>
-          handleInputChange('isTermsAccepted', !formData.isTermsAccepted)
-        }
-        style={styles.checkboxContainer}>
-        <Text style={styles.checkbox}>
-          {formData.isTermsAccepted ? '☑' : '☐'} Accept Terms and Conditions
-        </Text>
-      </TouchableOpacity>
+      
+      <CheckboxField 
+        label="Accept Terms and Conditions" 
+        checked={formData.isTermsAccepted} 
+        onPress={() => handleInputChange('isTermsAccepted', !formData.isTermsAccepted)}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color="#1E90FF" />
@@ -196,14 +132,34 @@ const RegisterScreen = ({navigation}) => {
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity
-        onPress={handleAlreadyRegistered}
-        style={styles.linkButton}>
+      <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.linkButton}>
         <Text style={styles.linkText}>Already registered? Login here</Text>
       </TouchableOpacity>
     </View>
   );
 };
+
+const InputField: React.FC<{ 
+  placeholder: string; 
+  value: string; 
+  keyboardType?: 'default' | 'numeric' | 'email-address'; 
+  onChangeText: (text: string) => void; 
+}> = ({ placeholder, value, keyboardType = 'default', onChangeText }) => (
+  <TextInput 
+    placeholder={placeholder}
+    style={styles.input}
+    keyboardType={keyboardType}
+    value={value}
+    onChangeText={onChangeText}
+    placeholderTextColor="#888"
+  />
+);
+
+const CheckboxField: React.FC<{ label: string; checked: boolean; onPress: () => void }> = ({ label, checked, onPress }) => (
+  <TouchableOpacity onPress={onPress} style={styles.checkboxContainer}>
+    <Text style={styles.checkbox}>{checked ? '☑' : '☐'} {label}</Text>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -222,13 +178,12 @@ const styles = StyleSheet.create({
   input: {
     width: '100%',
     backgroundColor: '#fff',
-    borderWidth: 0,
     borderRadius: 30,
     padding: 15,
     marginVertical: 10,
     fontSize: 16,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 5,
@@ -247,12 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     paddingVertical: 15,
     alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
     elevation: 5,
   },
   buttonText: {

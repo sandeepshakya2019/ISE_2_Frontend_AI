@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import Logo from '../components/Shared/Logo'; // Assuming consistency with OTP screen
 import {api} from '../utils/api';
 import toastConfig from '../styles/toastConfig';
 
 const LoanRepayScreen = ({navigation}) => {
   const [loans, setLoans] = useState([]);
   const [selectedLoan, setSelectedLoan] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState('');
 
   useEffect(() => {
@@ -36,6 +37,7 @@ const LoanRepayScreen = ({navigation}) => {
         return;
       }
 
+      // Fetch user details
       const userResponse = await api.get('/users/login-check', {
         headers: {Authorization: `Bearer ${token}`},
       });
@@ -46,6 +48,7 @@ const LoanRepayScreen = ({navigation}) => {
         throw new Error('Failed to fetch user details.');
       }
 
+      // Fetch loan details
       const loansResponse = await api.get('/loan/getAll', {
         headers: {Authorization: `Bearer ${token}`},
       });
@@ -92,7 +95,7 @@ const LoanRepayScreen = ({navigation}) => {
       <Text style={styles.loanText}>Loan Amount: ₹ {item.totalLoanAmount}</Text>
       <Text style={styles.loanText}>Status: {item.loanStatus}</Text>
       <Text style={styles.loanText}>Reason: {item.loanReason}</Text>
-      <Text style={styles.loanText}>Payback Amount: {item.paybackAmount}</Text>
+      <Text style={styles.loanText}>Payback Amount: ₹ {item.paybackAmount}</Text>
     </TouchableOpacity>
   );
 
@@ -100,14 +103,13 @@ const LoanRepayScreen = ({navigation}) => {
 
   return (
     <View style={styles.container}>
-      {loading && (
-        <View style={styles.overlay}>
-          <ActivityIndicator size="large" color="#28a745" />
-        </View>
-      )}
       <Toast config={toastConfig} />
-      <Text style={styles.welcomeText}>Welcome, {userName}!</Text>
-      {filteredLoans.length > 0 ? (
+      <Logo />
+      <Text style={styles.title}>Repay Loan</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#1E90FF" style={styles.loader} />
+      ) : filteredLoans.length > 0 ? (
         <FlatList
           data={filteredLoans}
           keyExtractor={item => item._id.toString()}
@@ -115,10 +117,9 @@ const LoanRepayScreen = ({navigation}) => {
           extraData={selectedLoan}
         />
       ) : (
-        <Text style={styles.noLoansText}>
-          No loans available for repayment.
-        </Text>
+        <Text style={styles.noLoansText}>No loans available for repayment.</Text>
       )}
+
       <TouchableOpacity
         style={[
           styles.repayButton,
@@ -138,28 +139,19 @@ const LoanRepayScreen = ({navigation}) => {
   );
 };
 
-// const styles = StyleSheet.create({
-//   /* same styles as provided */
-// });
-
-// export default LoanRepayScreen;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F4F7FC',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f9f9f9',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#1E90FF',
     marginBottom: 20,
-    color: '#333',
-  },
-  welcomeText: {
-    fontSize: 18,
-    marginBottom: 20,
-    color: '#555',
   },
   loanItem: {
     padding: 15,
@@ -168,20 +160,15 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     marginBottom: 10,
     backgroundColor: '#fff',
+    width: '100%',
   },
   selectedLoanItem: {
-    borderColor: '#28a745',
-    backgroundColor: '#e6f9ec',
+    borderColor: '#1E90FF',
+    backgroundColor: '#E6F7FF',
   },
   loanText: {
     fontSize: 16,
-    marginBottom: 5,
     color: '#333',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   noLoansText: {
     fontSize: 18,
@@ -189,60 +176,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 20,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
+  loader: {
+    marginVertical: 20,
   },
-  // Button Styles
   repayButton: {
-    backgroundColor: 'orange', // Yellow color for the button
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25, // Rounded corners for the button
-    marginTop: 20,
-    marginBottom: 10,
+    width: '100%',
+    backgroundColor: '#1E90FF',
+    borderRadius: 30,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3, // Adds shadow for Android
-    shadowColor: '#000', // Shadow for iOS
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowRadius: 5,
+    elevation: 5,
   },
   repayButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff', // White text for contrast
-    fontFamily: 'Roboto', // Change this to any custom font or use a system font
-  },
-  repayButtonDisabled: {
-    backgroundColor: '#ccc', // Disable button with a grey background
-  },
-  repayButtonTextDisabled: {
-    color: '#666', // Disabled button text in grey
-  },
-  loanItemButton: {
-    backgroundColor: '#28a745', // Green accent color
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    marginTop: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  loanItemButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
     color: '#fff',
   },
-  loanItemButtonPressed: {
-    backgroundColor: '#1c7c3c', // Darken on press
+  repayButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  repayButtonTextDisabled: {
+    color: '#666',
   },
 });
 

@@ -1,78 +1,122 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
+  Button,
+  StyleSheet,
   Image,
   FlatList,
   ActivityIndicator,
-  StyleSheet,
+  BackHandler,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../utils/api';
+import {api} from '../utils/api';
 import Toast from 'react-native-toast-message';
-import { useNavigation } from '@react-navigation/native';
-import { logoutApiCall } from '../utils/logout';
+import {useNavigation} from '@react-navigation/native';
+import {logoutApiCall} from '../utils/logout';
 import toastConfig from '../styles/toastConfig';
 
-const LoanDetailsScreen = ({ route }) => {
-  const [userDetails, setUserDetails] = useState(null);
-  const [loanDetails, setLoanDetails] = useState([]);
+const LoanDetailsScreen = ({route}) => {
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [loanDetails, setLoanDetails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { photo } = route.params || {};
+  const [fetchingLoans, setFetchingLoans] = useState(false);
+  const {photo} = route.params || {};
 
   const navigation = useNavigation();
 
+  // Fetch user details
   useEffect(() => {
-    fetchData();
+    const fetchUserDetails = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (!token) {
+          Toast.show({
+            text1: 'Error',
+            text2: 'Authentication token not found. Please log in again.',
+          });
+          return;
+        }
+
+        const response = await api.get('/users/login-check', {
+          headers: {Authorization: `Bearer ${token}`},
+        });
+
+        if (response?.data?.message) {
+          setUserDetails(response.data.message);
+        }
+      } catch (error) {
+        Toast.show({
+          text1: 'Error',
+          text2: 'Unable to fetch user details. Please try again later.',
+        });
+        console.error('Error fetching user details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDetails();
   }, []);
 
-  // Fetch User & Loan Details
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
-        showToast('Error', 'Authentication token not found. Please log in.');
-        return;
+  // Fetch loan details
+  useEffect(() => {
+    const fetchLoanDetails = async () => {
+      setFetchingLoans(true);
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (!token) {
+          Toast.show({
+            text1: 'Error',
+            text2: 'Authentication token not found. Please log in again.',
+          });
+          return;
+        }
+
+        const response = await api.get('/loan/getAll', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response?.data?.message) {
+          setLoanDetails(response.data.message);
+          Toast.show({
+            text1: 'Success',
+            text2: 'Loan details fetched successfully.',
+          });
+        }
+      } catch (error: any) {
+        Toast.show({
+          text1: 'Error',
+          text2: 'Unable to fetch loan details. Please try again later.',
+        });
+        console.error('Error fetching loan details:', error.response);
+      } finally {
+        setFetchingLoans(false);
       }
-      const [userRes, loanRes] = await Promise.all([
-        api.get('/users/login-check', { headers: { Authorization: `Bearer ${token}` } }),
-        api.get('/loan/getAll', { headers: { Authorization: `Bearer ${token}` } })
-      ]);
+    };
 
-      if (userRes?.data?.message) setUserDetails(userRes.data.message);
-      if (loanRes?.data?.message) setLoanDetails(loanRes.data.message);
-      showToast('Success', 'Data fetched successfully.');
-    } catch (error) {
-      showToast('Error', 'Failed to fetch data. Try again later.');
-      console.error('Fetch error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchLoanDetails();
+  }, []);
 
-  // Show Toast Message
-  const showToast = (title, message) => {
-    Toast.show({ text1: title, text2: message });
-  };
-
-  // Logout Handler
   const handleLogout = async () => {
-    if (await logoutApiCall()) {
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    const log = await logoutApiCall();
+    if (log) {
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Login'}],
+      });
     } else {
-      showToast('Error', 'Logout failed. Try again.');
+      Toast.show({
+        text1: 'Error',
+        text2: 'Unable to logout. Please try again later.',
+      });
     }
   };
 
-  const renderLoanItem = ({ item }) => (
-    <View style={styles.loanItem}>
-      <Text style={styles.loanText}>Loan Amount: ₹ {item.totalLoanAmount}</Text>
-      <Text style={styles.loanText}>Status: {item.loanStatus}</Text>
-      <Text style={styles.loanText}>Reason: {item.loanReason}</Text>
-      <Text style={styles.loanText}>Payback Amount: ₹ {item.paybackAmount}</Text>
-    </View>
-  );
+  const displayPhoto = photo || userDetails?.photo;
 
   if (loading) {
     return (
@@ -83,55 +127,141 @@ const LoanDetailsScreen = ({ route }) => {
     );
   }
 
+  const renderLoanItem = ({item}) => (
+    <View style={styles.loanItem}>
+      <Text style={styles.loanText}>
+        Loan Amount : ₹ {item.totalLoanAmount}
+      </Text>
+      <Text style={styles.loanText}>Status : {item.loanStatus}</Text>
+      <Text style={styles.loanText}>Reason : {item.loanReason}</Text>
+      <Text style={styles.loanText}>Payback Amount : {item.paybackAmount}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <Toast config={toastConfig} />
       <Text style={styles.title}>Loan Details</Text>
-
-      {photo || userDetails?.photo ? (
-        <Image source={{ uri: photo || userDetails.photo }} style={styles.photo} />
+      {displayPhoto ? (
+        <Image source={{uri: displayPhoto}} style={styles.photo} />
       ) : (
         <Text style={styles.noPhotoText}>No photo available</Text>
       )}
 
+      {/* <View style={styles.buttonContainer}>
+        <View style={styles.button}>
+          <Button
+            title="Borrow Loan"
+            onPress={() => navigation.navigate('LoanBorrow')}
+            color="#4CAF50"
+          />
+        </View>
+        <View style={styles.button}>
+          <Button
+            title="Repay Loan"
+            onPress={() => navigation.navigate('LoanRepay')}
+            color="#FF9800"
+          />
+        </View>
+      </View> */}
+
       <View style={styles.cardContainer}>
-        {[
-          { label: 'Total Amount', value: userDetails?.sectionedAmount || '0' },
-          { label: 'Eligible Amount', value: userDetails?.offeredAmount || '0' },
-          { label: 'Number of Loans', value: userDetails?.noOfLoan || 0 }
-        ].map((item, index) => (
-          <View key={index} style={styles.card}>
-            <Text style={styles.cardLabel}>{item.label}</Text>
-            <Text style={styles.rupee}>₹ {item.value}</Text>
+        <View style={styles.card}>
+          <View style={styles.cardRow}>
+            <Text style={styles.cardLabel}>Total Amount</Text>
+            <Text style={styles.rupee}>
+              ₹ {userDetails?.sectionedAmount || '0'}
+            </Text>
           </View>
-        ))}
+        </View>
+        <View style={styles.card}>
+          <View style={styles.cardRow}>
+            <Text style={styles.cardLabel}>Eligible Amount</Text>
+            <Text style={styles.rupee}>
+              ₹ {userDetails?.offeredAmount || '0'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.card}>
+          <View style={styles.cardRow}>
+            <Text style={styles.cardLabel}>Number of Loans</Text>
+            <Text style={styles.rupee}>{userDetails?.noOfLoan || 0}</Text>
+          </View>
+        </View>
       </View>
 
-      <FlatList
-        data={loanDetails}
-        renderItem={renderLoanItem}
-        keyExtractor={item => item._id.toString()}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.loanList}
-      />
+      {fetchingLoans ? (
+        <ActivityIndicator size="large" color="#28a745" />
+      ) : (
+        <FlatList
+          data={loanDetails}
+          renderItem={renderLoanItem}
+          keyExtractor={item => item._id.toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.loanList}
+        />
+      )}
+
+      {/* <View style={styles.logoutButtonContainer}>
+        <Button title="Logout" color="#d9534f" onPress={handleLogout} />
+      </View> */}
     </View>
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
+  cardContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    padding: 10,
+  },
+  card: {
+    backgroundColor: '#333',
+    padding: 15,
+    borderRadius: 15,
+    margin: 5,
+    width: '30%',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: {width: 0, height: 2},
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#444',
+    alignItems: 'center',
+  },
+  cardRow: {
+    alignItems: 'center',
+  },
+  cardLabel: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#ccc',
+    fontWeight: '500',
+  },
+  rupee: {
+    color: '#4db6ac',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
+    justifyContent: 'flex-start',
     alignItems: 'center',
     padding: 30,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#121212',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
-    color: '#333',
+    color: '#fff',
   },
   photo: {
     width: 150,
@@ -139,68 +269,55 @@ const styles = StyleSheet.create({
     borderRadius: 75,
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: '#666',
   },
   noPhotoText: {
     fontSize: 16,
-    color: '#777',
+    color: '#aaa',
     marginBottom: 20,
-  },
-  cardContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 10,
-    width: '100%',
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 15,
-    margin: 5,
-    width: '30%',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e0e0ee',
-    alignItems: 'center',
-  },
-  cardLabel: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#757575',
-    fontWeight: '500',
-  },
-  rupee: {
-    color: '#00796b',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 5,
   },
   loanItem: {
     width: 300,
     marginBottom: 20,
     padding: 10,
-    backgroundColor: '#fff',
+    backgroundColor: '#222',
     borderRadius: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#444',
   },
   loanText: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#444',
+    color: '#ddd',
   },
   loanList: {
     width: '100%',
     marginTop: 20,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  button: {
+    width: '45%',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#555',
+    overflow: 'hidden',
+  },
+  logoutButtonContainer: {
+    width: '60%',
+    marginTop: 10,
+    borderRadius: 300,
+    borderWidth: 1,
+    borderColor: '#555',
   },
 });
 

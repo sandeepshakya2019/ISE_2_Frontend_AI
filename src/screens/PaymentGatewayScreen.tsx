@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   Alert,
   View,
@@ -7,58 +7,53 @@ import {
   TouchableOpacity,
   Image,
   BackHandler,
-  ActivityIndicator,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../utils/api';
-import { useFocusEffect } from '@react-navigation/native';
+import {api} from '../utils/api';
+import {useFocusEffect} from '@react-navigation/native';
 
-interface PaymentGatewayScreenProps {
-  route: { params: { loan: Loan } };
-  navigation: any;
-}
-
-interface Loan {
-  _id: string;
-  totalLoanAmount: number;
-}
-
-const PaymentGatewayScreen: React.FC<PaymentGatewayScreenProps> = ({ route, navigation }) => {
-  const { loan } = route.params;
+const PaymentGatewayScreen = ({route, navigation}) => {
+  const {loan} = route.params;
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
-  const [timer, setTimer] = useState<number>(10);
-  const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState(null); // Store selected payment method
+  const [timer, setTimer] = useState(10); // Timer changed to 10 seconds
+  const [intervalId, setIntervalId] = useState(null); // Store the interval ID
 
   useEffect(() => {
     if (paymentMethod && timer > 0) {
       const id = setInterval(() => {
-        setTimer((prevTimer) => prevTimer - 1);
+        setTimer(prevTimer => prevTimer - 1);
       }, 1000);
-      setIntervalId(id);
-    } else if (timer === 0 && paymentMethod) {
+      setIntervalId(id); // Save the interval ID to clear it later
+    } else if (timer === 0) {
+      // Trigger the payment success after timer hits 0
       handlePaymentSuccess(paymentMethod);
+      clearInterval(intervalId); // Stop the timer
     }
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [paymentMethod, timer]);
 
   useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => true;
+    React.useCallback(() => {
+      const onBackPress = () => true; // Prevent going back
       BackHandler.addEventListener('hardwareBackPress', onBackPress);
 
       return () => {
-        if (intervalId) clearInterval(intervalId);
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
         BackHandler.removeEventListener('hardwareBackPress', onBackPress);
       };
-    }, [intervalId])
+    }, [intervalId]),
   );
 
-  const handlePaymentSuccess = async (method: string) => {
+  const handlePaymentSuccess = async method => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('authToken');
@@ -74,30 +69,36 @@ const PaymentGatewayScreen: React.FC<PaymentGatewayScreenProps> = ({ route, navi
 
       const response = await api.post(
         '/loan/repay',
-        { loanId: loan._id, paymentMethod: method },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {loanId: loan._id, paymentMethod: method},
+        {headers: {Authorization: `Bearer ${token}`}},
       );
 
       if (response?.data?.success) {
-        Alert.alert('Payment Successful', `Loan ${loan._id} repaid successfully.`, [{ text: 'OK' }]);
+        Alert.alert(
+          'Payment Successful',
+          `Loan ${loan._id} repaid successfully.`,
+          [{text: 'OK'}],
+          {cancelable: false},
+        );
         navigation.navigate('LoanDetails');
       } else {
         throw new Error(response?.data?.message || 'Payment failed.');
       }
-    } catch (error: any) {
+    } catch (error) {
       Toast.show({
         type: 'error',
         text1: 'Payment Error',
-        text2: error?.message || 'Failed to process the payment. Please try again.',
+        text2:
+          error?.message || 'Failed to process the payment. Please try again.',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePaymentOption = (method: string) => {
+  const handlePaymentOption = method => {
     setPaymentMethod(method);
-    setTimer(10);
+    setTimer(10); // Reset the timer for the selected payment method
   };
 
   const getPaymentImage = () => {
@@ -117,7 +118,8 @@ const PaymentGatewayScreen: React.FC<PaymentGatewayScreenProps> = ({ route, navi
     <View style={styles.container}>
       <Text style={styles.title}>Choose Payment Method</Text>
       <Text style={styles.amount}>
-        Repayment Amount: <Text style={styles.amountValue}>₹ {loan?.totalLoanAmount}</Text>
+        Repayment Amount:{' '}
+        <Text style={styles.amount}>₹ {loan?.totalLoanAmount}</Text>
       </Text>
 
       {paymentMethod ? (
@@ -125,34 +127,65 @@ const PaymentGatewayScreen: React.FC<PaymentGatewayScreenProps> = ({ route, navi
           <Text style={styles.qrText}>
             {paymentMethod === 'qrcode'
               ? 'Scan this QR code to complete the payment'
-              : `Please complete payment via ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`}
+              : `Please complete payment via ${
+                  paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)
+                }`}
           </Text>
-          <Text style={styles.infoText}>Payment will be completed automatically after {timer}s.</Text>
+          <Text>
+            Payment will be completed automatically (Sit back relax) Later we
+            can change it with some payment api such as stripe.
+          </Text>
           <View style={styles.centeredImageContainer}>
-            <Image source={{ uri: getPaymentImage() }} style={styles.qrImage} />
+            <Image source={{uri: getPaymentImage()}} style={styles.qrImage} />
           </View>
           <Text style={styles.timerText}>{timer}s</Text>
         </View>
       ) : (
         <>
-          {['qrcode', 'card', 'googlePay'].map((method) => (
-            <View key={method} style={styles.cardContainer}>
-              <TouchableOpacity
-                style={[styles.paymentOption, loading && styles.disabledButton]}
-                onPress={() => handlePaymentOption(method)}
-                disabled={loading}
-              >
-                <Image
-                  source={{ uri: `https://dummyimage.com/100x100/000/fff&text=${method.toUpperCase()}` }}
-                  style={styles.image}
-                />
-                <Text style={styles.optionText}>Pay with {method === 'qrcode' ? 'QR Code' : method}</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          <View style={styles.cardContainer}>
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => handlePaymentOption('qrcode')}
+              disabled={loading}>
+              <Image
+                source={{uri: 'https://dummyimage.com/100x100/000/fff&text=QR'}}
+                style={styles.image}
+              />
+              <Text style={styles.optionText}>Pay with QR Code</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.cardContainer}>
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => handlePaymentOption('card')}
+              disabled={loading}>
+              <Image
+                source={{
+                  uri: 'https://dummyimage.com/100x100/000/fff&text=Card',
+                }}
+                style={styles.image}
+              />
+              <Text style={styles.optionText}>Pay with Card</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.cardContainer}>
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => handlePaymentOption('googlePay')}
+              disabled={loading}>
+              <Image
+                source={{
+                  uri: 'https://dummyimage.com/100x100/000/fff&text=GPay',
+                }}
+                style={styles.image}
+              />
+              <Text style={styles.optionText}>Pay with Google Pay</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
-      {loading && <ActivityIndicator size="large" color="#00796b" />}
     </View>
   );
 };
@@ -174,18 +207,20 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 18,
     marginBottom: 20,
-    color: '#00796b',
+    color: '#fff',
+    backgroundColor: '#00796b',
     fontWeight: 'bold',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 25,
     textAlign: 'center',
-  },
-  amountValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    elevation: 3,
   },
   cardContainer: {
     backgroundColor: '#fff',
     padding: 15,
     borderRadius: 10,
+    shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
@@ -196,9 +231,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-  },
-  disabledButton: {
-    opacity: 0.5,
   },
   image: {
     width: 50,
@@ -217,11 +249,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
-  infoText: {
-    textAlign: 'center',
-    marginBottom: 10,
-    color: '#555',
-  },
   qrImage: {
     width: 200,
     height: 200,
@@ -229,6 +256,8 @@ const styles = StyleSheet.create({
   },
   centeredImageContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
   },
   timerText: {
     fontSize: 16,

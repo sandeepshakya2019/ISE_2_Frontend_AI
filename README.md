@@ -4,6 +4,12 @@
 
 The backend for FinSphere is available at: [FinSphere Backend](https://github.com/sandeepshakya2019/ISE_2_Backend_AI)
 
+`mobile no 9084043946 -> Already Register and KYC Done (You can directly view all the things)`
+
+`mobile no 8677963878 -> You can register with this mobile number`
+
+`you can use an additional mobile 1234567890`
+
 ## Introduction
 
 **FinSphere** is a mobile application designed to promote financial inclusion by providing essential financial services such as savings, loans, and insurance. The app leverages mobile banking, microfinance, and fintech innovations to create an accessible and user-friendly platform for underbanked and underserved populations.
